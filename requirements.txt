@@ -1,8 +1,11 @@
 # requirements.txt
-# Optional — only needed if you want clipboard access via pywin32
-# The daemon falls back to PowerShell subprocess if pywin32 is absent.
-#
-# Install with:
-#   pip install -r requirements.txt
+# Install with:  pip install -r requirements.txt
 
+# Core
+flask>=3.0
+websockets>=12.0
+pyperclip>=1.8
+
+# Image clipboard support (Windows)
 pywin32>=306
+Pillow>=10.0
