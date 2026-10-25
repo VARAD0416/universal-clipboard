@@ -1,7 +1,6 @@
 # iOS Shortcuts Reference — Universal Clipboard
 # =============================================
-# This file documents the exact action sequences for both iOS Shortcuts.
-# Use the iOS Shortcuts app to recreate these manually.
+# Covers text shortcuts (A & B) and the new image/video upload shortcut (C).
 
 ---
 
@@ -11,14 +10,9 @@ DESCRIPTION: Fetches GET /clipboard from the PC and copies text to iPhone clipbo
 
 ACTION 1 — URL
   Value: http://YOUR_PC_NAME.local:8765/clipboard
-  (Replace YOUR_PC_NAME with your actual Windows computer name)
 
 ACTION 2 — Get Contents of URL
   Method: GET
-  Headers:
-    Key: X-Clipboard-Token
-    Value: YOUR_TOKEN
-    (Delete this header if no auth is configured)
 
 ACTION 3 — Get Dictionary Value
   Get: Value
@@ -34,12 +28,11 @@ ACTION 5 — Show Notification
 
 ---
 
-SHORTCUT B: "Push to Windows"
-===============================
+SHORTCUT B: "Push Text to Windows"
+====================================
 DESCRIPTION: Reads iPhone clipboard and POSTs it to the PC daemon.
 
 ACTION 1 — Get Clipboard
-  (no configuration needed)
 
 ACTION 2 — Dictionary
   Add new item:
@@ -56,24 +49,82 @@ ACTION 4 — Get Contents of URL
   Headers:
     Key: Content-Type
     Value: application/json
-    ---
-    Key: X-Clipboard-Token
-    Value: YOUR_TOKEN
-    (Delete this header if no auth is configured)
 
 ACTION 5 — Show Notification
   Title: Pushed to Windows ✅
 
 ---
 
-SHARE SHEET SETUP (Push to Windows only)
+SHORTCUT C: "Send Image/Video to Windows"
 ==========================================
-1. Open the "Push to Windows" shortcut
-2. Tap ⋯ (three dots, top right)
-3. Tap "Shortcut Details"
-4. Toggle "Show in Share Sheet" ON
-5. Under "Share Sheet Types", check: Text, URLs
-6. Tap Done
+DESCRIPTION: Receives a photo or video from the Share Sheet and uploads it to the
+PC via POST /upload (multipart/form-data). Works from Photos app, Camera Roll,
+Files app — anywhere you can share.
+
+HOW TO CREATE:
+  1. Open the Shortcuts app → tap "+" to create a new shortcut
+  2. Tap "Shortcut Name" → rename to "Send Image/Video to Windows"
+
+ACTION 1 — (Shortcut Input — configured via Share Sheet)
+  This action is added automatically when you enable Share Sheet.
+  It holds the image/video selected by the user.
+  Variable name: Shortcut Input
+
+ACTION 2 — Get Details of Image  (skip for video; see note below)
+  Get: File Size   ← optional, just for the notification
+  From: Shortcut Input
+
+  NOTE: If you want to support BOTH images and videos in one shortcut,
+  add an "If" action after this to branch on file type. For simplicity,
+  create two separate shortcuts — one for Images, one for Videos.
+
+ACTION 3 — URL
+  Value: http://YOUR_PC_NAME.local:8765/upload
+
+ACTION 4 — Get Contents of URL
+  Method:       POST
+  Request Body: Form  ← IMPORTANT: choose "Form", NOT JSON
+  Add field:
+    Key:   file
+    Value: Shortcut Input   [variable from Action 1]
+           ↳ tap the variable bubble, choose "Shortcut Input"
+
+ACTION 5 — Get Dictionary Value
+  Get: Value
+  Key: action
+  From: Contents of URL  [variable from Action 4]
+
+ACTION 6 — Show Notification
+  Title: Sent to Windows ✅
+  Body:  Dictionary Value  [variable from Action 5]
+         (shows "clipboard + saved" for images, "saved + Explorer" for videos)
+
+---
+
+SHARE SHEET SETUP (Shortcut C)
+================================
+1. Open "Send Image/Video to Windows" shortcut
+2. Tap ⋯ (three dots, top right) → "Shortcut Details"
+3. Toggle "Show in Share Sheet" ON
+4. Under "Share Sheet Types", check:
+     ✅ Images
+     ✅ Videos
+     ✅ Media  (covers HEIC, HEIF, Live Photos)
+5. Tap Done
+
+After this, you'll see the shortcut in the Share Sheet of:
+  • Photos app (select photo/video → Share → Send Image/Video to Windows)
+  • Files app
+  • Safari (for images on web pages)
+
+---
+
+SHARE SHEET SETUP (Shortcut B — text only)
+============================================
+1. Open "Push Text to Windows" shortcut → ⋯ → Shortcut Details
+2. Toggle "Show in Share Sheet" ON
+3. Share Sheet Types: ✅ Text, ✅ URLs
+4. Tap Done
 
 ---
 
@@ -90,15 +141,32 @@ If denied by mistake:
 BACK TAP MAPPING
 =================
 Settings → Accessibility → Touch → Back Tap
-  Double Tap  → Push to Windows
-  Triple Tap  → Pull from Windows
+  Double Tap → Send Image/Video to Windows   (or Push Text to Windows)
+  Triple Tap → Pull from Windows
+
+---
+
+WHERE FILES ARE SAVED ON PC
+==============================
+All uploaded images and videos are saved to:
+  C:\Users\<YourName>\ClipboardMedia\
+
+Files are prefixed with a timestamp, e.g.:
+  20261025_194500_IMG_1234.jpg
+  20261025_194700_video_clip.mp4
+
+Images are ALSO placed directly on the Windows clipboard (Ctrl+V ready).
+Videos open in Explorer so you can see them immediately.
 
 ---
 
 TROUBLESHOOTING
 ================
-- .local not resolving on iPhone: Both devices must be on the same Wi-Fi SSID
-- Router with AP isolation enabled: Disable "Client Isolation" in router settings
-- Shortcut times out: Check Windows Firewall allows port 8765 (run install.ps1)
-- Permission was denied: See Local Network Permission section above
-- Fallback: Replace .local URL with static IP (e.g., http://192.168.1.x:8765/clipboard)
+- ".local not resolving": Both devices must be on the same Wi-Fi SSID
+- Router AP isolation:    Disable "Client Isolation" in router settings
+- Shortcut times out:     Check Windows Firewall allows port 8765 (run install.ps1)
+- Large video fails:      iOS Shortcuts has a ~50 MB upload limit for "Get Contents of URL"
+                          For large videos, use AirDrop or the Files app instead
+- Image not on clipboard: Run: pip install Pillow pywin32  (in the daemon's venv)
+- Permission denied:      See Local Network Permission section above
+- Fallback URL:           Use static IP instead of .local (e.g., http://192.168.1.x:8765)
