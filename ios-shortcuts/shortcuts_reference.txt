@@ -1,0 +1,104 @@
+# iOS Shortcuts Reference — Universal Clipboard
+# =============================================
+# This file documents the exact action sequences for both iOS Shortcuts.
+# Use the iOS Shortcuts app to recreate these manually.
+
+---
+
+SHORTCUT A: "Pull from Windows"
+================================
+DESCRIPTION: Fetches GET /clipboard from the PC and copies text to iPhone clipboard.
+
+ACTION 1 — URL
+  Value: http://YOUR_PC_NAME.local:8765/clipboard
+  (Replace YOUR_PC_NAME with your actual Windows computer name)
+
+ACTION 2 — Get Contents of URL
+  Method: GET
+  Headers:
+    Key: X-Clipboard-Token
+    Value: YOUR_TOKEN
+    (Delete this header if no auth is configured)
+
+ACTION 3 — Get Dictionary Value
+  Get: Value
+  Key: text
+  From: Contents of URL  [variable from Action 2]
+
+ACTION 4 — Copy to Clipboard
+  Content: Dictionary Value  [variable from Action 3]
+
+ACTION 5 — Show Notification
+  Title: Clipboard Synced ✅
+  Body: Dictionary Value  [variable from Action 3]
+
+---
+
+SHORTCUT B: "Push to Windows"
+===============================
+DESCRIPTION: Reads iPhone clipboard and POSTs it to the PC daemon.
+
+ACTION 1 — Get Clipboard
+  (no configuration needed)
+
+ACTION 2 — Dictionary
+  Add new item:
+    Key: text
+    Value: Clipboard  [variable from Action 1]
+
+ACTION 3 — URL
+  Value: http://YOUR_PC_NAME.local:8765/clipboard
+
+ACTION 4 — Get Contents of URL
+  Method: POST
+  Request Body: JSON
+  JSON Body: Dictionary  [variable from Action 2]
+  Headers:
+    Key: Content-Type
+    Value: application/json
+    ---
+    Key: X-Clipboard-Token
+    Value: YOUR_TOKEN
+    (Delete this header if no auth is configured)
+
+ACTION 5 — Show Notification
+  Title: Pushed to Windows ✅
+
+---
+
+SHARE SHEET SETUP (Push to Windows only)
+==========================================
+1. Open the "Push to Windows" shortcut
+2. Tap ⋯ (three dots, top right)
+3. Tap "Shortcut Details"
+4. Toggle "Show in Share Sheet" ON
+5. Under "Share Sheet Types", check: Text, URLs
+6. Tap Done
+
+---
+
+LOCAL NETWORK PERMISSION
+==========================
+First run will prompt: "Shortcuts would like to find and connect to devices on your local network"
+→ Tap ALLOW
+
+If denied by mistake:
+  Settings → Privacy & Security → Local Network → Shortcuts → Toggle ON
+
+---
+
+BACK TAP MAPPING
+=================
+Settings → Accessibility → Touch → Back Tap
+  Double Tap  → Push to Windows
+  Triple Tap  → Pull from Windows
+
+---
+
+TROUBLESHOOTING
+================
+- .local not resolving on iPhone: Both devices must be on the same Wi-Fi SSID
+- Router with AP isolation enabled: Disable "Client Isolation" in router settings
+- Shortcut times out: Check Windows Firewall allows port 8765 (run install.ps1)
+- Permission was denied: See Local Network Permission section above
+- Fallback: Replace .local URL with static IP (e.g., http://192.168.1.x:8765/clipboard)
